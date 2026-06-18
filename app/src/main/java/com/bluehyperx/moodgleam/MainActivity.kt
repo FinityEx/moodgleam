@@ -474,6 +474,13 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun requestCameraCapture() {
+        val prefs = Preferences(this)
+        val cameraInputSource =
+            prefs.getString(R.string.pref_key_camera_input_source, "internal") ?: "internal"
+        if (cameraInputSource == "rtsp") {
+            startCameraGrabber()
+            return
+        }
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.CAMERA), REQUEST_CAMERA_PERMISSION)
         } else {

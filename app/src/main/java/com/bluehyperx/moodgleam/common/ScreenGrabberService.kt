@@ -54,7 +54,7 @@ class ScreenGrabberService : Service() {
     private var mScreenrecordEncoder: ScreenrecordEncoder? = null
     private var mScrcpyEncoder: ScrcpyEncoder? = null
     private var mAccessibilityEncoder: AccessibilityEncoder? = null
-    private var mCameraEncoder: CameraEncoder? = null
+    private var mCameraEncoder: CameraCaptureController? = null
     private var mEffectsEncoder: EffectsEncoder? = null
     private var mMusicEncoder: MusicEncoder? = null
     private var mMtkThalCaptureEncoder: MtkThalCaptureEncoder? = null
@@ -676,16 +676,23 @@ class ScreenGrabberService : Service() {
 
         val prefs = Preferences(this)
         val options = buildAppOptions(prefs)
+        val cameraInputSource =
+            prefs.getString(R.string.pref_key_camera_input_source, "internal") ?: "internal"
 
         val cornersStr = prefs.getString(R.string.pref_key_camera_corners, null)
         val corners = CameraEncoder.parseCornersString(cornersStr)
 
-        mCameraEncoder = CameraEncoder(
-            this,
-            thread.receiver,
-            options,
-            corners
-        )
+        mCameraEncoder = if (cameraInputSource == "rtsp") {
+            val rtspUrl = prefs.getString(R.string.pref_key_camera_rtsp_url, "")?.trim().orEmpty()
+            if (rtspUrl.isBlank()) {
+                Log.w(TAG, "RTSP camera source selected but URL is blank, falling back to device camera")
+                CameraEncoder(this, thread.receiver, options, corners)
+            } else {
+                RtspCameraEncoder(thread.receiver, options, corners, rtspUrl)
+            }
+        } else {
+            CameraEncoder(this, thread.receiver, options, corners)
+        }
         mCameraEncoder!!.start()
         mCameraEncoder!!.sendStatus()
     }
@@ -1369,6 +1376,9 @@ class ScreenGrabberService : Service() {
         // Keys that require restarting the capture session (encoders)
         val captureKeys = mutableSetOf(
             getString(R.string.pref_key_capture_source),
+            getString(R.string.pref_key_camera_input_source),
+            getString(R.string.pref_key_camera_rtsp_url),
+            getString(R.string.pref_key_camera_corners),
             getString(R.string.pref_key_capture_method),
             getString(R.string.pref_key_music_capture_method),
             getString(R.string.pref_key_framerate),

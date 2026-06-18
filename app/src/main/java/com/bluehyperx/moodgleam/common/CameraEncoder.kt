@@ -35,7 +35,7 @@ class CameraEncoder(
     private val listener: HyperionThread.HyperionThreadListener,
     private val options: AppOptions,
     corners: FloatArray, // 8 floats: tl_x, tl_y, tr_x, tr_y, br_x, br_y, bl_x, bl_y (normalized 0..1)
-) : LifecycleOwner {
+) : LifecycleOwner, CameraCaptureController {
 
     // --- Lifecycle для CameraX ---
     private val lifecycleRegistry = LifecycleRegistry(this)
@@ -86,7 +86,7 @@ class CameraEncoder(
 
     // ======================== Public API ========================
 
-    fun start() {
+    override fun start() {
         mainHandler.post {
             lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_CREATE)
             lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_START)
@@ -104,7 +104,7 @@ class CameraEncoder(
         }
     }
 
-    fun stopRecording() {
+    override fun stopRecording() {
         if (DEBUG) Log.i(TAG, "stopRecording")
         mRunning = false
         mCapturing = false
@@ -131,7 +131,7 @@ class CameraEncoder(
         clearAndDisconnect()
     }
 
-    fun stopRecordingNoDisconnect() {
+    override fun stopRecordingNoDisconnect() {
         if (DEBUG) Log.i(TAG, "stopRecordingNoDisconnect")
         mRunning = false
         mCapturing = false
@@ -153,20 +153,20 @@ class CameraEncoder(
         clearLights()
     }
 
-    fun resumeRecording() {
+    override fun resumeRecording() {
         if (DEBUG) Log.i(TAG, "resumeRecording")
         if (!mCapturing) {
             start()
         }
     }
 
-    fun isCapturing(): Boolean = mCapturing
+    override fun isCapturing(): Boolean = mCapturing
 
-    fun sendStatus() {
+    override fun sendStatus() {
         listener.sendStatus(mCapturing)
     }
 
-    fun clearLights() {
+    override fun clearLights() {
         Thread {
             repeat(CLEAR_FRAMES) {
                 sleep(CLEAR_DELAY_MS)
@@ -175,7 +175,7 @@ class CameraEncoder(
         }.start()
     }
 
-    fun setOrientation(orientation: Int) {
+    override fun setOrientation(orientation: Int) {
         // Camera rotation handled automatically via rotationDegrees in processFrame
     }
 
