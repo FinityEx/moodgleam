@@ -34,14 +34,27 @@ class RtspCameraEncoder(
     private val outputHeight: Int
     private val paint = Paint(Paint.FILTER_BITMAP_FLAG or Paint.ANTI_ALIAS_FLAG)
     private val mBorderCropper = com.bluehyperx.moodgleam.common.util.BorderProcessor()
+    private val displayPts = FloatArray(8)
+    private val dstPts = FloatArray(8)
+    private val perspectiveMatrix = Matrix()
+    private val correctedCanvas = Canvas()
 
     private var correctedBitmap: Bitmap? = null
     private var rgbBuffer: ByteArray? = null
+    private var outPixels: IntArray? = null
 
     init {
         val q = if (options.captureQuality > 0) options.captureQuality else 128
         outputWidth = max(32, min(q, 512))
         outputHeight = max(32, (outputWidth * 9f / 16f).toInt())
+        dstPts[0] = 0f
+        dstPts[1] = 0f
+        dstPts[2] = outputWidth.toFloat()
+        dstPts[3] = 0f
+        dstPts[4] = outputWidth.toFloat()
+        dstPts[5] = outputHeight.toFloat()
+        dstPts[6] = 0f
+        dstPts[7] = outputHeight.toFloat()
     }
 
     override fun start() {
@@ -131,39 +144,38 @@ class RtspCameraEncoder(
     private fun processFrame(srcBitmap: Bitmap) {
         val width = srcBitmap.width
         val height = srcBitmap.height
-        val displayPts = floatArrayOf(
-            mCorners[0] * width, mCorners[1] * height,
-            mCorners[2] * width, mCorners[3] * height,
-            mCorners[4] * width, mCorners[5] * height,
-            mCorners[6] * width, mCorners[7] * height
-        )
-        val dstPts = floatArrayOf(
-            0f, 0f,
-            outputWidth.toFloat(), 0f,
-            outputWidth.toFloat(), outputHeight.toFloat(),
-            0f, outputHeight.toFloat()
-        )
-        val perspectiveMatrix = Matrix()
+        displayPts[0] = mCorners[0] * width
+        displayPts[1] = mCorners[1] * height
+        displayPts[2] = mCorners[2] * width
+        displayPts[3] = mCorners[3] * height
+        displayPts[4] = mCorners[4] * width
+        displayPts[5] = mCorners[5] * height
+        displayPts[6] = mCorners[6] * width
+        displayPts[7] = mCorners[7] * height
         perspectiveMatrix.setPolyToPoly(displayPts, 0, dstPts, 0, 4)
 
         if (correctedBitmap == null || correctedBitmap!!.width != outputWidth || correctedBitmap!!.height != outputHeight) {
             correctedBitmap?.recycle()
             correctedBitmap = Bitmap.createBitmap(outputWidth, outputHeight, Bitmap.Config.ARGB_8888)
+            correctedCanvas.setBitmap(correctedBitmap)
         }
 
-        val canvas = Canvas(correctedBitmap!!)
-        canvas.drawColor(android.graphics.Color.BLACK)
-        canvas.drawBitmap(srcBitmap, perspectiveMatrix, paint)
+        val totalPixels = outputWidth * outputHeight
+        if (outPixels == null || outPixels!!.size < totalPixels) {
+            outPixels = IntArray(totalPixels)
+        }
 
-        val outPixels = IntArray(outputWidth * outputHeight)
-        correctedBitmap!!.getPixels(outPixels, 0, outputWidth, 0, 0, outputWidth, outputHeight)
+        correctedCanvas.drawColor(android.graphics.Color.BLACK)
+        correctedCanvas.drawBitmap(srcBitmap, perspectiveMatrix, paint)
+
+        correctedBitmap!!.getPixels(outPixels!!, 0, outputWidth, 0, 0, outputWidth, outputHeight)
         val rgbSize = outputWidth * outputHeight * 3
         if (rgbBuffer == null || rgbBuffer!!.size < rgbSize) {
             rgbBuffer = ByteArray(rgbSize)
         }
 
         var idx = 0
-        for (pixel in outPixels) {
+        for (pixel in outPixels!!) {
             rgbBuffer!![idx++] = ((pixel shr 16) and 0xFF).toByte()
             rgbBuffer!![idx++] = ((pixel shr 8) and 0xFF).toByte()
             rgbBuffer!![idx++] = (pixel and 0xFF).toByte()

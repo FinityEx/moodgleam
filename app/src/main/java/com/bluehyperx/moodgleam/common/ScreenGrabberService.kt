@@ -685,8 +685,13 @@ class ScreenGrabberService : Service() {
         mCameraEncoder = if (cameraInputSource == "rtsp") {
             val rtspUrl = prefs.getString(R.string.pref_key_camera_rtsp_url, "")?.trim().orEmpty()
             if (rtspUrl.isBlank()) {
-                Log.w(TAG, "RTSP camera source selected but URL is blank, falling back to device camera")
-                CameraEncoder(this, thread.receiver, options, corners)
+                Log.w(TAG, "RTSP camera source selected but URL is blank")
+                mStartError = resources.getString(
+                    R.string.pref_error_missing_field,
+                    resources.getString(R.string.pref_title_camera_rtsp_url)
+                )
+                haltStartup()
+                return
             } else {
                 RtspCameraEncoder(thread.receiver, options, corners, rtspUrl)
             }

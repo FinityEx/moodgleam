@@ -32,12 +32,12 @@ jobs:
       env:
         ENCODED_STRING: ${{ secrets.KEYSTORE_BASE64 }}
       run: |
-        if [ -n "$ENCODED_STRING" ]; then
-          echo "$ENCODED_STRING" | base64 -d > release.keystore
-          echo "Keystore decoded successfully."
-        else
-          echo "KEYSTORE_BASE64 secret is not set. APK will not be signed."
+        if [ -z "$ENCODED_STRING" ]; then
+          echo "KEYSTORE_BASE64 secret is not set."
+          exit 1
         fi
+        printf '%s' "$ENCODED_STRING" | base64 -d > release.keystore
+        echo "Keystore decoded successfully."
 
     - name: Build Signed Release APK
       env:
