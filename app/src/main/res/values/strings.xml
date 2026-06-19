@@ -125,6 +125,18 @@
   <!-- Capture source -->
   <string name="pref_title_capture_source">Capture Source</string>
   <string name="pref_summary_capture_source">Screen capture or external camera</string>
+  <string name="pref_title_camera_input_source">Camera Input Source</string>
+  <string name="pref_summary_camera_input_source">Choose local device camera or remote RTSP stream</string>
+  <string-array name="pref_list_camera_input_source">
+    <item>Device Camera</item>
+    <item>RTSP Stream (LAN)</item>
+  </string-array>
+  <string-array name="pref_list_camera_input_source_values">
+    <item>internal</item>
+    <item>rtsp</item>
+  </string-array>
+  <string name="pref_title_camera_rtsp_url">RTSP Stream URL</string>
+  <string name="pref_summary_camera_rtsp_url">Remote stream URL, e.g. rtsp://192.168.1.10:554/stream</string>
   <string-array name="pref_list_capture_source">
     <item>Screen Sync</item>
     <item>Camera (Ambient)</item>
@@ -242,6 +254,7 @@
   <string name="camera_permission_required">Camera permission is required for camera capture mode</string>
   <string name="camera_grant_permission">Grant Permission</string>
   <string name="camera_capturing_status">Camera is capturing…</string>
+  <string name="camera_capturing_status_rtsp">RTSP stream is capturing…</string>
   <string name="camera_not_available">Camera is not available on this device</string>
   <!-- Capture Method -->
   <string name="pref_title_capture_method">Capture Method</string>

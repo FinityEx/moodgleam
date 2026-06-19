@@ -153,6 +153,9 @@ fun SettingsScreen(
     var captureMethod by remember {
         mutableStateOf(prefs.getString(R.string.pref_key_capture_method) ?: "media_projection")
     }
+    var cameraInputSource by remember {
+        mutableStateOf(prefs.getString(R.string.pref_key_camera_input_source) ?: "internal")
+    }
 
     var showAccessibilityDisclosure by remember { mutableStateOf(false) }
     var previousCaptureMethod by remember { mutableStateOf(captureMethod) }
@@ -607,10 +610,32 @@ fun SettingsScreen(
 
                 // Camera corner setup (only when camera source is selected)
                 if (captureSource == "camera") {
+                    ListPreference(
+                        prefs = prefs,
+                        keyRes = R.string.pref_key_camera_input_source,
+                        title = stringResource(R.string.pref_title_camera_input_source),
+                        entriesRes = R.array.pref_list_camera_input_source,
+                        entryValuesRes = R.array.pref_list_camera_input_source_values,
+                        recomposeKey = cameraInputSource,
+                        onValueChange = { newSource ->
+                            cameraInputSource = newSource
+                        }
+                    )
+                    if (cameraInputSource == "rtsp") {
+                        EditTextPreference(
+                            prefs = prefs,
+                            keyRes = R.string.pref_key_camera_rtsp_url,
+                            title = stringResource(R.string.pref_title_camera_rtsp_url),
+                            summaryProvider = { it },
+                            onValueChange = { _ -> }
+                        )
+                    }
+
                     ClickablePreference(
                         title = stringResource(R.string.pref_title_camera_setup),
                         summary = stringResource(R.string.pref_summary_camera_setup),
-                        onClick = { onCameraSetupClick() }
+                        onClick = { onCameraSetupClick() },
+                        enabled = cameraInputSource != "rtsp"
                     )
                 }
 
@@ -1847,6 +1872,7 @@ fun ClickablePreference(
     title: String,
     summary: String? = null,
     onClick: () -> Unit,
+    enabled: Boolean = true,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val indication = LocalIndication.current
@@ -1857,8 +1883,10 @@ fun ClickablePreference(
             .clickable(
                 interactionSource = interactionSource,
                 indication = indication,
+                enabled = enabled,
                 onClick = onClick
-            ),
+            )
+            .alpha(if (enabled) 1f else 0.5f),
         color = MaterialTheme.colorScheme.surface
     ) {
         Column(
@@ -1881,4 +1909,3 @@ fun ClickablePreference(
         }
     }
 }
-

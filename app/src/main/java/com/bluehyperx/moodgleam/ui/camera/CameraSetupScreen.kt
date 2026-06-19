@@ -448,6 +448,9 @@ fun CameraPreviewView(
 fun CameraPreviewBackground(isCapturing: Boolean = false) {
     val context = LocalContext.current
     val prefs = remember { Preferences(context) }
+    val cameraInputSource =
+        prefs.getString(R.string.pref_key_camera_input_source, "internal") ?: "internal"
+    val isRtspSource = cameraInputSource == "rtsp"
 
     val hasCameraPermission = remember {
         ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) ==
@@ -465,7 +468,7 @@ fun CameraPreviewBackground(isCapturing: Boolean = false) {
     val bottomLeft = Offset(corners[6], corners[7])
 
     Box(modifier = Modifier.fillMaxSize()) {
-        if (!isCapturing && hasCameraPermission) {
+        if (!isRtspSource && !isCapturing && hasCameraPermission) {
             // Live camera preview (for calibration before starting)
             CameraPreviewView()
         } else {
@@ -510,7 +513,10 @@ fun CameraPreviewBackground(isCapturing: Boolean = false) {
                     }
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = stringResource(R.string.camera_capturing_status),
+                        text = stringResource(
+                            if (isRtspSource) R.string.camera_capturing_status_rtsp
+                            else R.string.camera_capturing_status
+                        ),
                         color = Color.White,
                         fontSize = 14.sp
                     )
