@@ -28,6 +28,7 @@ class RemoteStreamCameraEncoder(
     corners: FloatArray,
     private val streamSource: String,
     private val streamUrl: String,
+    private val outputWidthOverride: Int,
     private val onError: (String) -> Unit,
 ) : CameraCaptureController {
 
@@ -44,7 +45,7 @@ class RemoteStreamCameraEncoder(
     private var player: ExoPlayer? = null
 
     private val cornersCopy = corners.copyOf()
-    private val frameIntervalMs = (1000L / options.frameRate).coerceAtLeast(16L)
+    private val frameIntervalMs = (1000L / options.frameRate.coerceAtLeast(1)).coerceAtLeast(16L)
     private val outputWidth: Int
     private val outputHeight: Int
     private val paint = Paint(Paint.FILTER_BITMAP_FLAG or Paint.ANTI_ALIAS_FLAG)
@@ -79,7 +80,8 @@ class RemoteStreamCameraEncoder(
     }
 
     init {
-        val q = if (options.captureQuality > 0) options.captureQuality else 128
+        val requestedWidth = if (outputWidthOverride > 0) outputWidthOverride else options.captureQuality
+        val q = if (requestedWidth > 0) requestedWidth else 128
         outputWidth = max(32, min(q, 512))
         outputHeight = max(32, (outputWidth * 9f / 16f).toInt())
         dstPts[0] = 0f
@@ -133,32 +135,50 @@ class RemoteStreamCameraEncoder(
 
     private fun startPlayer() {
         if (!running) return
-        imageReader = ImageReader.newInstance(outputWidth, outputHeight, android.graphics.PixelFormat.RGBA_8888, 2).also { reader ->
-            reader.setOnImageAvailableListener({ imageSource ->
-                val image = imageSource.acquireLatestImage() ?: return@setOnImageAvailableListener
-                try {
-                    val now = System.currentTimeMillis()
-                    if (now - lastFrameAt >= frameIntervalMs) {
-                        lastFrameAt = now
-                        processImage(image)
+        try {
+            val handler = imageHandler
+            if (handler == null) {
+                running = false
+                capturing = false
+                listener.sendStatus(false)
+                onError(buildErrorMessage("Frame pipeline was not initialized"))
+                return
+            }
+            imageReader = ImageReader.newInstance(outputWidth, outputHeight, android.graphics.PixelFormat.RGBA_8888, 2).also { reader ->
+                reader.setOnImageAvailableListener({ imageSource ->
+                    val image = imageSource.acquireLatestImage() ?: return@setOnImageAvailableListener
+                    try {
+                        val now = System.currentTimeMillis()
+                        if (now - lastFrameAt >= frameIntervalMs) {
+                            lastFrameAt = now
+                            processImage(image)
+                        }
+                    } catch (e: Exception) {
+                        if (running) {
+                            Log.w(TAG, "Failed to process remote frame", e)
+                        }
+                    } finally {
+                        image.close()
                     }
-                } catch (e: Exception) {
-                    if (running) {
-                        Log.w(TAG, "Failed to process remote frame", e)
-                    }
-                } finally {
-                    image.close()
-                }
-            }, imageHandler)
-        }
+                }, handler)
+            }
 
-        val mediaSource = RemoteStreamSupport.buildMediaSource(context, streamSource, streamUrl)
-        player = RemoteStreamSupport.buildConfiguredPlayer(context).apply {
-            addListener(playerListener)
-            setVideoSurface(imageReader!!.surface)
-            setMediaSource(mediaSource)
-            playWhenReady = true
-            prepare()
+            val latencyOptions = RemoteStreamSupport.readLatencyOptions(context)
+            val mediaSource = RemoteStreamSupport.buildMediaSource(context, streamSource, streamUrl, latencyOptions)
+            player = RemoteStreamSupport.buildConfiguredPlayer(context, latencyOptions).apply {
+                addListener(playerListener)
+                setVideoSurface(imageReader!!.surface)
+                setMediaSource(mediaSource)
+                playWhenReady = true
+                prepare()
+            }
+        } catch (e: Exception) {
+            if (!running) return
+            Log.e(TAG, "Failed to start remote stream player", e)
+            capturing = false
+            listener.sendStatus(false)
+            onError(buildErrorMessage(e.localizedMessage ?: e.javaClass.simpleName))
+            stopInternal(disconnect = false)
         }
     }
 
@@ -299,6 +319,10 @@ class RemoteStreamCameraEncoder(
     private fun buildErrorMessage(error: PlaybackException): String {
         val causeMessage = error.cause?.localizedMessage?.takeIf { it.isNotBlank() }
         val details = causeMessage ?: error.errorCodeName
+        return buildErrorMessage(details)
+    }
+
+    private fun buildErrorMessage(details: String): String {
         return context.getString(R.string.camera_remote_stream_error, details)
     }
 

@@ -24,6 +24,7 @@ class MjpegCameraEncoder(
     private val options: AppOptions,
     corners: FloatArray,
     private val streamUrl: String,
+    private val outputWidthOverride: Int,
     private val onError: (String) -> Unit,
 ) : CameraCaptureController {
 
@@ -43,7 +44,7 @@ class MjpegCameraEncoder(
     private var worker: Thread? = null
 
     private val cornersCopy = corners.copyOf()
-    private val frameIntervalMs = (1000L / options.frameRate).coerceAtLeast(16L)
+    private val frameIntervalMs = (1000L / options.frameRate.coerceAtLeast(1)).coerceAtLeast(16L)
     private val outputWidth: Int
     private val outputHeight: Int
     private val paint = Paint(Paint.FILTER_BITMAP_FLAG or Paint.ANTI_ALIAS_FLAG)
@@ -58,7 +59,8 @@ class MjpegCameraEncoder(
     private var outPixels: IntArray? = null
 
     init {
-        val q = if (options.captureQuality > 0) options.captureQuality else 128
+        val requestedWidth = if (outputWidthOverride > 0) outputWidthOverride else options.captureQuality
+        val q = if (requestedWidth > 0) requestedWidth else 128
         outputWidth = max(32, min(q, 512))
         outputHeight = max(32, (outputWidth * 9f / 16f).toInt())
         dstPts[0] = 0f

@@ -120,6 +120,9 @@ fun SettingsScreen(
     var wledProtocol by remember {
         mutableStateOf(prefs.getString(R.string.pref_key_wled_protocol) ?: "udp_raw")
     }
+    var latencyPreferDdp by remember {
+        mutableStateOf(prefs.getBoolean(R.string.pref_key_latency_prefer_ddp, false))
+    }
     var smoothingPreset by remember {
         mutableStateOf(prefs.getString(R.string.pref_key_smoothing_preset) ?: "off")
     }
@@ -244,9 +247,39 @@ fun SettingsScreen(
                                     val defaultPort = if (newProtocol == "ddp") "4048" else "19446"
                                     prefs.putString(R.string.pref_key_port, defaultPort)
                                     currentPort = defaultPort
+                                    if (newProtocol != "ddp" && latencyPreferDdp) {
+                                        latencyPreferDdp = false
+                                        prefs.putBoolean(R.string.pref_key_latency_prefer_ddp, false)
+                                    }
                                 }
                             )
                         }
+key(latencyPreferDdp) { CheckBoxPreference(
+                            prefs = prefs,
+                            keyRes = R.string.pref_key_latency_prefer_ddp,
+                            title = stringResource(R.string.pref_title_latency_prefer_ddp),
+                            summary = stringResource(R.string.pref_summary_latency_prefer_ddp),
+                            onValueChange = { enabled ->
+                                latencyPreferDdp = enabled
+                                if (connectionType != "wled") {
+                                    Toast.makeText(
+                                        context,
+                                        context.getString(R.string.pref_toast_latency_prefer_ddp_requires_wled),
+                                        Toast.LENGTH_LONG
+                                    ).show()
+                                } else if (enabled) {
+                                    wledProtocol = "ddp"
+                                    prefs.putString(R.string.pref_key_wled_protocol, "ddp")
+                                    prefs.putString(R.string.pref_key_port, "4048")
+                                    currentPort = "4048"
+                                    Toast.makeText(
+                                        context,
+                                        context.getString(R.string.pref_toast_latency_prefer_ddp_enabled),
+                                        Toast.LENGTH_LONG
+                                    ).show()
+                                }
+                            }
+                        )
                     }
 
                     // Use key to force recomposition when connection type or WLED protocol changes
@@ -630,6 +663,81 @@ fun SettingsScreen(
                             summaryProvider = { it },
                             onValueChange = { _ -> }
                         )
+                        CheckBoxPreference(
+                            prefs = prefs,
+                            keyRes = R.string.pref_key_latency_rtsp_udp_preferred,
+                            title = stringResource(R.string.pref_title_latency_rtsp_udp_preferred),
+                            summary = stringResource(R.string.pref_summary_latency_rtsp_udp_preferred),
+                            onValueChange = {
+                                if (RemoteStreamSupport.normalizeSource(cameraInputSource) != RemoteStreamSupport.SOURCE_RTSP) {
+                                    Toast.makeText(
+                                        context,
+                                        context.getString(R.string.pref_toast_latency_rtsp_udp_applies_to_rtsp),
+                                        Toast.LENGTH_LONG
+                                    ).show()
+                                }
+                            }
+                        )
+                        CheckBoxPreference(
+                            prefs = prefs,
+                            keyRes = R.string.pref_key_latency_low_buffering,
+                            title = stringResource(R.string.pref_title_latency_low_buffering),
+                            summary = stringResource(R.string.pref_summary_latency_low_buffering),
+                            onValueChange = { enabled ->
+                                if (enabled) {
+                                    Toast.makeText(
+                                        context,
+                                        context.getString(R.string.pref_toast_latency_low_buffer_warning),
+                                        Toast.LENGTH_LONG
+                                    ).show()
+                                }
+                            }
+                        )
+                        CheckBoxPreference(
+                            prefs = prefs,
+                            keyRes = R.string.pref_key_latency_ll_hls,
+                            title = stringResource(R.string.pref_title_latency_ll_hls),
+                            summary = stringResource(R.string.pref_summary_latency_ll_hls),
+                            onValueChange = {
+                                if (RemoteStreamSupport.normalizeSource(cameraInputSource) != RemoteStreamSupport.SOURCE_HLS) {
+                                    Toast.makeText(
+                                        context,
+                                        context.getString(R.string.pref_toast_latency_ll_hls_applies_to_hls),
+                                        Toast.LENGTH_LONG
+                                    ).show()
+                                }
+                            }
+                        )
+                        var remoteOptimizeEnabled by remember(cameraInputSource) {
+                            mutableStateOf(
+                                prefs.getBoolean(R.string.pref_key_latency_remote_optimize, false)
+                            )
+                        }
+                        CheckBoxPreference(
+                            prefs = prefs,
+                            keyRes = R.string.pref_key_latency_remote_optimize,
+                            title = stringResource(R.string.pref_title_latency_remote_optimize),
+                            summary = stringResource(R.string.pref_summary_latency_remote_optimize),
+onValueChange = { enabled ->
+    remoteOptimizeEnabled = enabled
+}
+                        )
+                        if (remoteOptimizeEnabled) {
+                            ListPreference(
+                                prefs = prefs,
+                                keyRes = R.string.pref_key_latency_remote_resolution,
+                                title = stringResource(R.string.pref_title_latency_remote_resolution),
+                                entriesRes = R.array.pref_list_latency_remote_resolution,
+                                entryValuesRes = R.array.pref_list_latency_remote_resolution_values,
+                                onValueChange = { value ->
+                                    Toast.makeText(
+                                        context,
+                                        context.getString(R.string.pref_toast_latency_remote_resolution_saved, value),
+                                        Toast.LENGTH_LONG
+                                    ).show()
+                                }
+                            )
+                        }
                     }
 
                     ClickablePreference(
