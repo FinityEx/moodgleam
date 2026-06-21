@@ -43,7 +43,7 @@ class MjpegCameraEncoder(
     private var worker: Thread? = null
 
     private val cornersCopy = corners.copyOf()
-    private val frameIntervalMs = (1000L / options.frameRate).coerceAtLeast(16L)
+    private val frameIntervalMs = (1000L / options.frameRate.coerceAtLeast(1)).coerceAtLeast(16L)
     private val outputWidth: Int
     private val outputHeight: Int
     private val paint = Paint(Paint.FILTER_BITMAP_FLAG or Paint.ANTI_ALIAS_FLAG)

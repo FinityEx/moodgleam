@@ -225,7 +225,7 @@ class ScreenGrabberService : Service() {
         val port = prefs.getInt(R.string.pref_key_port, -1)
         val priority =
             prefs.getString(R.string.pref_key_priority, "100")?.takeIf { it.isNotBlank() } ?: "100"
-        mFrameRate = prefs.getInt(R.string.pref_key_framerate)
+        mFrameRate = prefs.getInt(R.string.pref_key_framerate).coerceAtLeast(1)
 
         try {
             val captureQualityStr = prefs.getString(R.string.pref_key_capture_quality, "128")
@@ -682,38 +682,49 @@ class ScreenGrabberService : Service() {
         val cornersStr = prefs.getString(R.string.pref_key_camera_corners, null)
         val corners = CameraEncoder.parseCornersString(cornersStr)
 
-        mCameraEncoder = if (RemoteStreamSupport.isRemoteSource(cameraInputSource)) {
-            val streamUrl = prefs.getString(R.string.pref_key_camera_rtsp_url, "")?.trim().orEmpty()
-            if (streamUrl.isBlank()) {
-                Log.w(TAG, "Remote camera source selected but URL is blank")
-                mStartError = resources.getString(
-                    R.string.pref_error_missing_field,
-                    resources.getString(R.string.pref_title_camera_rtsp_url)
-                )
-                haltStartup()
-                return
-            } else if (RemoteStreamSupport.normalizeSource(cameraInputSource) == RemoteStreamSupport.SOURCE_MJPEG) {
-                MjpegCameraEncoder(
-                    this,
-                    thread.receiver,
-                    options,
-                    corners,
-                    streamUrl
-                ) { error -> stopCameraCaptureWithError(error) }
+        try {
+            mCameraEncoder = if (RemoteStreamSupport.isRemoteSource(cameraInputSource)) {
+                val streamUrl = prefs.getString(R.string.pref_key_camera_rtsp_url, "")?.trim().orEmpty()
+                if (streamUrl.isBlank()) {
+                    Log.w(TAG, "Remote camera source selected but URL is blank")
+                    mStartError = resources.getString(
+                        R.string.pref_error_missing_field,
+                        resources.getString(R.string.pref_title_camera_rtsp_url)
+                    )
+                    haltStartup()
+                    return
+                } else if (RemoteStreamSupport.normalizeSource(cameraInputSource) == RemoteStreamSupport.SOURCE_MJPEG) {
+                    MjpegCameraEncoder(
+                        this,
+                        thread.receiver,
+                        options,
+                        corners,
+                        streamUrl
+                    ) { error -> stopCameraCaptureWithError(error) }
+                } else {
+                    RemoteStreamCameraEncoder(
+                        this,
+                        thread.receiver,
+                        options,
+                        corners,
+                        cameraInputSource,
+                        streamUrl
+                    ) { error -> stopCameraCaptureWithError(error) }
+                }
             } else {
-                RemoteStreamCameraEncoder(
-                    this,
-                    thread.receiver,
-                    options,
-                    corners,
-                    cameraInputSource,
-                    streamUrl
-                ) { error -> stopCameraCaptureWithError(error) }
+                CameraEncoder(this, thread.receiver, options, corners)
             }
-        } else {
-            CameraEncoder(this, thread.receiver, options, corners)
+            mCameraEncoder!!.start()
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to start camera capture", e)
+            val details = e.localizedMessage?.takeIf { it.isNotBlank() } ?: e.javaClass.simpleName
+            mStartError = if (RemoteStreamSupport.isRemoteSource(cameraInputSource)) {
+                resources.getString(R.string.camera_remote_stream_error, details)
+            } else {
+                details
+            }
+            haltStartup()
         }
-        mCameraEncoder!!.start()
     }
 
     private fun startEffectsCapture() {
@@ -1483,7 +1494,7 @@ class ScreenGrabberService : Service() {
         
         // Update basic capture settings that prepared() also reads
         val prefs = Preferences(this)
-        mFrameRate = prefs.getInt(R.string.pref_key_framerate)
+        mFrameRate = prefs.getInt(R.string.pref_key_framerate).coerceAtLeast(1)
         try {
             val captureQualityStr = prefs.getString(R.string.pref_key_capture_quality, "128")
                 ?.takeIf { it.isNotBlank() } ?: "128"
