@@ -79,6 +79,7 @@ import androidx.compose.ui.unit.dp
 import com.bluehyperx.moodgleam.R
 import com.bluehyperx.moodgleam.common.AccessibilityCaptureService
 import com.bluehyperx.moodgleam.common.MtkThalCaptureEncoder
+import com.bluehyperx.moodgleam.common.RemoteStreamSupport
 import com.bluehyperx.moodgleam.common.util.AdbAutoPair
 import com.bluehyperx.moodgleam.common.util.AdbKeyHelper
 import com.bluehyperx.moodgleam.common.util.AppAdbConnectionManager
@@ -621,7 +622,7 @@ fun SettingsScreen(
                             cameraInputSource = newSource
                         }
                     )
-                    if (cameraInputSource == "rtsp") {
+                    if (RemoteStreamSupport.isRemoteSource(cameraInputSource)) {
                         EditTextPreference(
                             prefs = prefs,
                             keyRes = R.string.pref_key_camera_rtsp_url,
@@ -634,8 +635,7 @@ fun SettingsScreen(
                     ClickablePreference(
                         title = stringResource(R.string.pref_title_camera_setup),
                         summary = stringResource(R.string.pref_summary_camera_setup),
-                        onClick = { onCameraSetupClick() },
-                        enabled = cameraInputSource != "rtsp"
+                        onClick = { onCameraSetupClick() }
                     )
                 }
 

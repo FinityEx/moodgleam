@@ -69,6 +69,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import com.bluehyperx.moodgleam.R
 import com.bluehyperx.moodgleam.common.CameraEncoder
+import com.bluehyperx.moodgleam.common.RemoteStreamSupport
 import com.bluehyperx.moodgleam.common.util.Preferences
 import kotlin.math.sqrt
 
@@ -78,6 +79,11 @@ fun CameraSetupScreen(onBackClick: () -> Unit) {
     val context = LocalContext.current
     val prefs = remember { Preferences(context) }
     val lifecycleOwner = LocalLifecycleOwner.current
+    val cameraInputSource =
+        prefs.getString(R.string.pref_key_camera_input_source, RemoteStreamSupport.SOURCE_INTERNAL)
+            ?: RemoteStreamSupport.SOURCE_INTERNAL
+    val isRemoteSource = RemoteStreamSupport.isRemoteSource(cameraInputSource)
+    val remoteUrl = prefs.getString(R.string.pref_key_camera_rtsp_url, "")?.trim().orEmpty()
 
     // Dynamic camera permission state
     var hasCameraPermission by remember {
@@ -95,8 +101,8 @@ fun CameraSetupScreen(onBackClick: () -> Unit) {
     }
 
     // Request permission on first composition if not granted
-    LaunchedEffect(Unit) {
-        if (!hasCameraPermission) {
+    LaunchedEffect(isRemoteSource, hasCameraPermission) {
+        if (!isRemoteSource && !hasCameraPermission) {
             permissionLauncher.launch(Manifest.permission.CAMERA)
         }
     }
@@ -203,7 +209,7 @@ fun CameraSetupScreen(onBackClick: () -> Unit) {
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            if (!hasCameraPermission) {
+            if (!isRemoteSource && !hasCameraPermission) {
                 // Show permission request UI
                 Column(
                     modifier = Modifier.fillMaxSize(),
@@ -224,8 +230,15 @@ fun CameraSetupScreen(onBackClick: () -> Unit) {
                     }
                 }
             } else {
-                // Camera Preview
-                CameraPreviewView(lifecycleOwner)
+                if (isRemoteSource) {
+                    RemoteStreamPreview(
+                        streamSource = cameraInputSource,
+                        streamUrl = remoteUrl,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else {
+                    CameraPreviewView(lifecycleOwner)
+                }
 
                 // Corner overlay with dragging support
                 // Using inline Canvas with direct state access so pointerInput
@@ -449,8 +462,10 @@ fun CameraPreviewBackground(isCapturing: Boolean = false) {
     val context = LocalContext.current
     val prefs = remember { Preferences(context) }
     val cameraInputSource =
-        prefs.getString(R.string.pref_key_camera_input_source, "internal") ?: "internal"
-    val isRtspSource = cameraInputSource == "rtsp"
+        prefs.getString(R.string.pref_key_camera_input_source, RemoteStreamSupport.SOURCE_INTERNAL)
+            ?: RemoteStreamSupport.SOURCE_INTERNAL
+    val isRemoteSource = RemoteStreamSupport.isRemoteSource(cameraInputSource)
+    val remoteUrl = prefs.getString(R.string.pref_key_camera_rtsp_url, "")?.trim().orEmpty()
 
     val hasCameraPermission = remember {
         ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) ==
@@ -468,11 +483,15 @@ fun CameraPreviewBackground(isCapturing: Boolean = false) {
     val bottomLeft = Offset(corners[6], corners[7])
 
     Box(modifier = Modifier.fillMaxSize()) {
-        if (!isRtspSource && !isCapturing && hasCameraPermission) {
-            // Live camera preview (for calibration before starting)
+        if (isRemoteSource && !isCapturing) {
+            RemoteStreamPreview(
+                streamSource = cameraInputSource,
+                streamUrl = remoteUrl,
+                modifier = Modifier.fillMaxSize()
+            )
+        } else if (!isCapturing && hasCameraPermission) {
             CameraPreviewView()
         } else {
-            // Dark background: either service is capturing (camera busy) or no permission
             Spacer(
                 modifier = Modifier
                     .fillMaxSize()
@@ -514,7 +533,7 @@ fun CameraPreviewBackground(isCapturing: Boolean = false) {
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = stringResource(
-                            if (isRtspSource) R.string.camera_capturing_status_rtsp
+                            if (isRemoteSource) R.string.camera_capturing_status_rtsp
                             else R.string.camera_capturing_status
                         ),
                         color = Color.White,
