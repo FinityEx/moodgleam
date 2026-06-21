@@ -254,7 +254,7 @@ fun SettingsScreen(
                                 }
                             )
                         }
-key(latencyPreferDdp) { CheckBoxPreference(
+                  { CheckBoxPreference(
                             prefs = prefs,
                             keyRes = R.string.pref_key_latency_prefer_ddp,
                             title = stringResource(R.string.pref_title_latency_prefer_ddp),
@@ -281,6 +281,7 @@ key(latencyPreferDdp) { CheckBoxPreference(
                             }
                         )
                     }
+    
 
                     // Use key to force recomposition when connection type or WLED protocol changes
                     key("${connectionType}_${wledProtocol}") {
@@ -2017,5 +2018,5 @@ fun ClickablePreference(
         }
     }
 }
-}
+
 
