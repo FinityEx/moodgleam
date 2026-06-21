@@ -718,16 +718,9 @@ fun SettingsScreen(
                             keyRes = R.string.pref_key_latency_remote_optimize,
                             title = stringResource(R.string.pref_title_latency_remote_optimize),
                             summary = stringResource(R.string.pref_summary_latency_remote_optimize),
-                            onValueChange = { enabled ->
-                                remoteOptimizeEnabled = enabled
-                                if (!RemoteStreamSupport.isRemoteSource(cameraInputSource)) {
-                                    Toast.makeText(
-                                        context,
-                                        context.getString(R.string.pref_toast_latency_remote_optimize_requires_remote),
-                                        Toast.LENGTH_LONG
-                                    ).show()
-                                }
-                            }
+onValueChange = { enabled ->
+    remoteOptimizeEnabled = enabled
+}
                         )
                         if (remoteOptimizeEnabled) {
                             ListPreference(
