@@ -22,10 +22,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.media3.common.C
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
-import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import com.bluehyperx.moodgleam.R
@@ -57,16 +55,7 @@ fun RemoteStreamPreview(
 
     var errorMessage by remember(streamSource, trimmedUrl) { mutableStateOf<String?>(null) }
     val exoPlayer = remember(streamSource, trimmedUrl) {
-        ExoPlayer.Builder(context).build().apply {
-            trackSelectionParameters = trackSelectionParameters
-                .buildUpon()
-                .setTrackTypeDisabled(C.TRACK_TYPE_AUDIO, true)
-                .build()
-            volume = 0f
-            setMediaItem(RemoteStreamSupport.buildMediaItem(streamSource, trimmedUrl))
-            playWhenReady = true
-            prepare()
-        }
+        RemoteStreamSupport.buildPlayer(context, streamSource, trimmedUrl)
     }
 
     DisposableEffect(exoPlayer) {
