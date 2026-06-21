@@ -277,6 +277,7 @@ fun SettingsScreen(
                                         context.getString(R.string.pref_toast_latency_prefer_ddp_enabled),
                                         Toast.LENGTH_LONG
                                     ).show()
+                                
                                 }
                             }
                         )
