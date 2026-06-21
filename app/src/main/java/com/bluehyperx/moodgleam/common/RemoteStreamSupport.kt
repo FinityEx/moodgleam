@@ -34,7 +34,7 @@ object RemoteStreamSupport {
         val builder = MediaItem.Builder().setUri(url)
         when (normalizedSource) {
             SOURCE_HLS -> builder.setMimeType(MimeTypes.APPLICATION_M3U8)
-            SOURCE_HTTP -> builder.setMimeType(inferHttpMimeType(url))
+            SOURCE_HTTP -> builder.setMimeType(MimeTypes.VIDEO_MP4)
             // RTSP: no MIME type needed; RtspMediaSource detects from URI scheme
         }
         return builder.build()
@@ -80,13 +80,7 @@ object RemoteStreamSupport {
     }
 
     fun buildPlayer(context: Context, source: String?, url: String): ExoPlayer {
-        val player = ExoPlayer.Builder(context).build().apply {
-            trackSelectionParameters = trackSelectionParameters
-                .buildUpon()
-                .setTrackTypeDisabled(C.TRACK_TYPE_AUDIO, true)
-                .build()
-            volume = 0f
-        }
+        val player = buildConfiguredPlayer(context)
         val mediaSource = buildMediaSource(context, source, url)
         player.setMediaSource(mediaSource)
         player.playWhenReady = true
@@ -94,13 +88,13 @@ object RemoteStreamSupport {
         return player
     }
 
-    private fun inferHttpMimeType(url: String): String {
-        val lowerUrl = url.lowercase()
-        return when {
-            lowerUrl.contains(".m3u8") || lowerUrl.contains("m3u8") -> MimeTypes.APPLICATION_M3U8
-            lowerUrl.contains(".mpd") -> "application/dash+xml"
-            lowerUrl.contains(".ts") && !lowerUrl.contains(".html") -> "video/mp2t"
-            else -> MimeTypes.VIDEO_MP4
+    fun buildConfiguredPlayer(context: Context): ExoPlayer {
+        return ExoPlayer.Builder(context).build().apply {
+            trackSelectionParameters = trackSelectionParameters
+                .buildUpon()
+                .setTrackTypeDisabled(C.TRACK_TYPE_AUDIO, true)
+                .build()
+            volume = 0f
         }
     }
 }

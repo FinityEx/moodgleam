@@ -131,7 +131,7 @@ class MjpegCameraEncoder(
                 activeStream = stream
                 capturing = true
                 listener.sendStatus(true)
-                retries = 0
+                var receivedFrame = false
 
                 var lastFrameAt = 0L
                 while (running) {
@@ -142,16 +142,25 @@ class MjpegCameraEncoder(
                     val bitmap = BitmapFactory.decodeByteArray(jpeg, 0, jpeg.size)
                         ?: continue // skip undecodable frames instead of crashing
                     try {
+                        if (!receivedFrame) {
+                            retries = 0
+                            receivedFrame = true
+                        }
                         processFrame(bitmap)
                     } finally {
                         bitmap.recycle()
                     }
                 }
                 if (running) {
-                    // Stream ended - will retry
                     capturing = false
                     listener.sendStatus(false)
-                    Log.w(TAG, "MJPEG stream ended, retrying...")
+                    retries++
+                    if (retries > MAX_RETRIES) {
+                        Log.e(TAG, "MJPEG stream ended after $MAX_RETRIES retries")
+                        onError(context.getString(R.string.camera_remote_stream_error, "MJPEG stream ended"))
+                        return
+                    }
+                    Log.w(TAG, "MJPEG stream ended (retry $retries/$MAX_RETRIES)")
                 }
             } catch (e: Exception) {
                 if (running) {

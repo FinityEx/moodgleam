@@ -152,9 +152,13 @@ class RemoteStreamCameraEncoder(
             }, imageHandler)
         }
 
-        player = RemoteStreamSupport.buildPlayer(context, streamSource, streamUrl).apply {
+        val mediaSource = RemoteStreamSupport.buildMediaSource(context, streamSource, streamUrl)
+        player = RemoteStreamSupport.buildConfiguredPlayer(context).apply {
             addListener(playerListener)
             setVideoSurface(imageReader!!.surface)
+            setMediaSource(mediaSource)
+            playWhenReady = true
+            prepare()
         }
     }
 
