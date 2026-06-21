@@ -1,13 +1,13 @@
 package com.bluehyperx.moodgleam.ui.camera
 
 import android.annotation.SuppressLint
+import android.text.TextUtils
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -123,7 +123,7 @@ private fun RemotePreviewMessage(
         Text(
             text = text,
             modifier = Modifier.padding(24.dp),
-            color = MaterialTheme.colorScheme.onBackground,
+            color = Color.White,
             textAlign = TextAlign.Center
         )
     }
@@ -137,14 +137,17 @@ private fun MjpegPreview(
 ) {
     AndroidView(
         factory = { context ->
+            val safeUrl = TextUtils.htmlEncode(streamUrl)
             WebView(context).apply {
                 setBackgroundColor(android.graphics.Color.BLACK)
                 webViewClient = WebViewClient()
                 settings.javaScriptEnabled = false
                 settings.loadsImagesAutomatically = true
+                settings.allowFileAccess = false
+                settings.allowContentAccess = false
                 loadDataWithBaseURL(
                     null,
-                    "<html><body style='margin:0;background:black;display:flex;align-items:center;justify-content:center;overflow:hidden;'><img src='$streamUrl' style='width:100%;height:100%;object-fit:cover;'/></body></html>",
+                    "<html><body style='margin:0;background:black;display:flex;align-items:center;justify-content:center;overflow:hidden;'><img src='$safeUrl' style='width:100%;height:100%;object-fit:cover;'/></body></html>",
                     "text/html",
                     "utf-8",
                     null
@@ -153,9 +156,10 @@ private fun MjpegPreview(
         },
         modifier = modifier,
         update = {
+            val safeUrl = TextUtils.htmlEncode(streamUrl)
             it.loadDataWithBaseURL(
                 null,
-                "<html><body style='margin:0;background:black;display:flex;align-items:center;justify-content:center;overflow:hidden;'><img src='$streamUrl' style='width:100%;height:100%;object-fit:cover;'/></body></html>",
+                "<html><body style='margin:0;background:black;display:flex;align-items:center;justify-content:center;overflow:hidden;'><img src='$safeUrl' style='width:100%;height:100%;object-fit:cover;'/></body></html>",
                 "text/html",
                 "utf-8",
                 null

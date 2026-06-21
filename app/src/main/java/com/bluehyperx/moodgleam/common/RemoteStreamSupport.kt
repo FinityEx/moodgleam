@@ -22,7 +22,7 @@ object RemoteStreamSupport {
         val builder = MediaItem.Builder().setUri(url)
         when (normalizedSource) {
             SOURCE_HLS -> builder.setMimeType(MimeTypes.APPLICATION_M3U8)
-            SOURCE_HTTP -> if (url.contains(".mp4", ignoreCase = true)) {
+            SOURCE_HTTP -> if (url.contains(".mp4", ignoreCase = true) || url.contains("?mp4", ignoreCase = true)) {
                 builder.setMimeType(MimeTypes.VIDEO_MP4)
             }
         }

@@ -34,6 +34,12 @@ class MjpegCameraEncoder(
     private var capturing = false
 
     @Volatile
+    private var activeConnection: HttpURLConnection? = null
+
+    @Volatile
+    private var activeStream: BufferedInputStream? = null
+
+    @Volatile
     private var worker: Thread? = null
 
     private val cornersCopy = corners.copyOf()
@@ -108,10 +114,12 @@ class MjpegCameraEncoder(
         try {
             connection = URL(streamUrl).openConnection() as HttpURLConnection
             connection.connectTimeout = 10_000
-            connection.readTimeout = 15_000
+            connection.readTimeout = 5_000
             connection.setRequestProperty("Accept", "multipart/x-mixed-replace")
+            activeConnection = connection
             connection.connect()
             stream = BufferedInputStream(connection.inputStream)
+            activeStream = stream
             capturing = true
             listener.sendStatus(true)
 
@@ -140,6 +148,8 @@ class MjpegCameraEncoder(
                 onError(context.getString(R.string.camera_remote_stream_error, e.localizedMessage ?: "MJPEG error"))
             }
         } finally {
+            activeStream = null
+            activeConnection = null
             try {
                 stream?.close()
             } catch (_: Exception) {
@@ -220,6 +230,8 @@ class MjpegCameraEncoder(
     private fun stopInternal(disconnect: Boolean) {
         running = false
         capturing = false
+        try { activeStream?.close() } catch (_: Exception) {}
+        try { activeConnection?.disconnect() } catch (_: Exception) {}
         worker?.interrupt()
         worker = null
         listener.sendStatus(false)

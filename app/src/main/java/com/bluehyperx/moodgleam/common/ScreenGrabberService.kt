@@ -685,7 +685,7 @@ class ScreenGrabberService : Service() {
         mCameraEncoder = if (RemoteStreamSupport.isRemoteSource(cameraInputSource)) {
             val streamUrl = prefs.getString(R.string.pref_key_camera_rtsp_url, "")?.trim().orEmpty()
             if (streamUrl.isBlank()) {
-                Log.w(TAG, "RTSP camera source selected but URL is blank")
+                Log.w(TAG, "Remote camera source selected but URL is blank")
                 mStartError = resources.getString(
                     R.string.pref_error_missing_field,
                     resources.getString(R.string.pref_title_camera_rtsp_url)
