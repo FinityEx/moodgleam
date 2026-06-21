@@ -11,7 +11,6 @@ import android.os.Handler
 import android.os.HandlerThread
 import android.os.Looper
 import android.util.Log
-import androidx.media3.common.C
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
@@ -153,15 +152,11 @@ class RemoteStreamCameraEncoder(
             }, imageHandler)
         }
 
-        player = ExoPlayer.Builder(context).build().apply {
-            trackSelectionParameters = trackSelectionParameters
-                .buildUpon()
-                .setTrackTypeDisabled(C.TRACK_TYPE_AUDIO, true)
-                .build()
-            volume = 0f
+        val mediaSource = RemoteStreamSupport.buildMediaSource(context, streamSource, streamUrl)
+        player = RemoteStreamSupport.buildConfiguredPlayer(context).apply {
             addListener(playerListener)
             setVideoSurface(imageReader!!.surface)
-            setMediaItem(RemoteStreamSupport.buildMediaItem(streamSource, streamUrl))
+            setMediaSource(mediaSource)
             playWhenReady = true
             prepare()
         }

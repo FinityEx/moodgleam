@@ -111,50 +111,80 @@ class MjpegCameraEncoder(
     private fun captureLoop() {
         var connection: HttpURLConnection? = null
         var stream: BufferedInputStream? = null
-        try {
-            connection = URL(streamUrl).openConnection() as HttpURLConnection
-            connection.connectTimeout = 10_000
-            connection.readTimeout = 5_000
-            connection.setRequestProperty("Accept", "multipart/x-mixed-replace")
-            activeConnection = connection
-            connection.connect()
-            stream = BufferedInputStream(connection.inputStream)
-            activeStream = stream
-            capturing = true
-            listener.sendStatus(true)
-
-            var lastFrameAt = 0L
-            while (running) {
-                val jpeg = readNextJpeg(stream) ?: break
-                val now = System.currentTimeMillis()
-                if (now - lastFrameAt < frameIntervalMs) continue
-                lastFrameAt = now
-                val bitmap = BitmapFactory.decodeByteArray(jpeg, 0, jpeg.size)
-                    ?: throw IllegalStateException("MJPEG frame decode failed")
-                try {
-                    processFrame(bitmap)
-                } finally {
-                    bitmap.recycle()
-                }
-            }
-            if (running) {
-                throw IllegalStateException("MJPEG stream ended")
-            }
-        } catch (e: Exception) {
-            if (running) {
-                capturing = false
-                listener.sendStatus(false)
-                Log.e(TAG, "MJPEG capture failed", e)
-                onError(context.getString(R.string.camera_remote_stream_error, e.localizedMessage ?: "MJPEG error"))
-            }
-        } finally {
-            activeStream = null
-            activeConnection = null
+        var retries = 0
+        while (running) {
             try {
-                stream?.close()
-            } catch (_: Exception) {
+                connection = URL(streamUrl).openConnection() as HttpURLConnection
+                connection.connectTimeout = 15_000
+                connection.readTimeout = 30_000
+                connection.setRequestProperty("Accept", "multipart/x-mixed-replace, image/jpeg")
+                connection.setRequestProperty("Connection", "keep-alive")
+                activeConnection = connection
+                connection.connect()
+
+                val responseCode = connection.responseCode
+                if (responseCode !in 200..299) {
+                    throw IllegalStateException("MJPEG server returned HTTP $responseCode")
+                }
+
+                stream = BufferedInputStream(connection.inputStream, 128 * 1024)
+                activeStream = stream
+                capturing = true
+                listener.sendStatus(true)
+                var receivedFrame = false
+
+                var lastFrameAt = 0L
+                while (running) {
+                    val jpeg = readNextJpeg(stream) ?: break
+                    val now = System.currentTimeMillis()
+                    if (now - lastFrameAt < frameIntervalMs) continue
+                    lastFrameAt = now
+                    val bitmap = BitmapFactory.decodeByteArray(jpeg, 0, jpeg.size)
+                        ?: continue // skip undecodable frames instead of crashing
+                    try {
+                        if (!receivedFrame) {
+                            retries = 0
+                            receivedFrame = true
+                        }
+                        processFrame(bitmap)
+                    } finally {
+                        bitmap.recycle()
+                    }
+                }
+                if (running) {
+                    capturing = false
+                    listener.sendStatus(false)
+                    retries++
+                    if (retries > MAX_RETRIES) {
+                        Log.e(TAG, "MJPEG stream ended after $MAX_RETRIES retries")
+                        onError(context.getString(R.string.camera_remote_stream_error, "MJPEG stream ended"))
+                        return
+                    }
+                    Log.w(TAG, "MJPEG stream ended (retry $retries/$MAX_RETRIES)")
+                }
+            } catch (e: Exception) {
+                if (running) {
+                    capturing = false
+                    listener.sendStatus(false)
+                    retries++
+                    if (retries > MAX_RETRIES) {
+                        Log.e(TAG, "MJPEG capture failed after $MAX_RETRIES retries", e)
+                        onError(context.getString(R.string.camera_remote_stream_error, e.localizedMessage ?: "MJPEG error"))
+                        return
+                    }
+                    Log.w(TAG, "MJPEG capture failed (retry $retries/$MAX_RETRIES)", e)
+                }
+            } finally {
+                activeStream = null
+                activeConnection = null
+                try { stream?.close() } catch (_: Exception) {}
+                try { connection?.disconnect() } catch (_: Exception) {}
+                stream = null
+                connection = null
             }
-            connection?.disconnect()
+            if (running) {
+                sleep(RETRY_DELAY_MS)
+            }
         }
     }
 
@@ -256,6 +286,8 @@ class MjpegCameraEncoder(
         private const val TAG = "MjpegCameraEncoder"
         private const val CLEAR_FRAMES = 5
         private const val CLEAR_DELAY_MS = 100L
+        private const val RETRY_DELAY_MS = 2000L
+        private const val MAX_RETRIES = 5
 
         private fun sleep(ms: Long) {
             try {
