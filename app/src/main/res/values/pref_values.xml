@@ -89,6 +89,8 @@
     <!-- WLED advanced settings -->
     <string name="pref_key_wled_protocol" translatable="false">pref_key_wled_protocol</string>
     <string name="pref_default_wled_protocol" translatable="false">udp_raw</string>
+    <string name="pref_key_latency_prefer_ddp" translatable="false">pref_key_latency_prefer_ddp</string>
+    <bool name="pref_default_latency_prefer_ddp" translatable="false">false</bool>
 
     <string name="pref_key_wled_rgbw" translatable="false">pref_key_wled_rgbw</string>
     <bool name="pref_default_wled_rgbw" translatable="false">false</bool>
@@ -172,6 +174,24 @@
     <string name="pref_default_camera_input_source" translatable="false">internal</string>
     <string name="pref_key_camera_rtsp_url" translatable="false">pref_key_camera_rtsp_url</string>
     <string name="pref_default_camera_rtsp_url" translatable="false"></string>
+    <string name="pref_key_latency_rtsp_udp_preferred" translatable="false">pref_key_latency_rtsp_udp_preferred</string>
+    <bool name="pref_default_latency_rtsp_udp_preferred" translatable="false">true</bool>
+    <string name="pref_key_latency_low_buffering" translatable="false">pref_key_latency_low_buffering</string>
+    <bool name="pref_default_latency_low_buffering" translatable="false">false</bool>
+    <string name="pref_key_latency_ll_hls" translatable="false">pref_key_latency_ll_hls</string>
+    <bool name="pref_default_latency_ll_hls" translatable="false">false</bool>
+    <string name="pref_key_latency_remote_optimize" translatable="false">pref_key_latency_remote_optimize</string>
+    <bool name="pref_default_latency_remote_optimize" translatable="false">false</bool>
+    <string name="pref_key_latency_remote_resolution" translatable="false">pref_key_latency_remote_resolution</string>
+    <string name="pref_default_latency_remote_resolution" translatable="false">128</string>
+    <string-array name="pref_list_latency_remote_resolution_values" translatable="false">
+        <item>128</item>
+        <item>96</item>
+        <item>160</item>
+        <item>192</item>
+        <item>256</item>
+        <item>320</item>
+    </string-array>
 
     <string name="pref_key_current_effect" translatable="false">pref_key_current_effect</string>
     <string name="pref_default_current_effect" translatable="false">rainbow</string>

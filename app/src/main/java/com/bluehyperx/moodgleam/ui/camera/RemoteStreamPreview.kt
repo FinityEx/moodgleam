@@ -55,7 +55,8 @@ fun RemoteStreamPreview(
 
     var errorMessage by remember(streamSource, trimmedUrl) { mutableStateOf<String?>(null) }
     val exoPlayer = remember(streamSource, trimmedUrl) {
-        RemoteStreamSupport.buildPlayer(context, streamSource, trimmedUrl)
+        val latencyOptions = RemoteStreamSupport.readLatencyOptions(context)
+        RemoteStreamSupport.buildPlayer(context, streamSource, trimmedUrl, latencyOptions)
     }
 
     DisposableEffect(exoPlayer) {

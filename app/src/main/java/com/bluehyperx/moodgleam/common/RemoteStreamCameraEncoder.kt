@@ -28,6 +28,7 @@ class RemoteStreamCameraEncoder(
     corners: FloatArray,
     private val streamSource: String,
     private val streamUrl: String,
+    private val outputWidthOverride: Int,
     private val onError: (String) -> Unit,
 ) : CameraCaptureController {
 
@@ -79,7 +80,8 @@ class RemoteStreamCameraEncoder(
     }
 
     init {
-        val q = if (options.captureQuality > 0) options.captureQuality else 128
+        val requestedWidth = if (outputWidthOverride > 0) outputWidthOverride else options.captureQuality
+        val q = if (requestedWidth > 0) requestedWidth else 128
         outputWidth = max(32, min(q, 512))
         outputHeight = max(32, (outputWidth * 9f / 16f).toInt())
         dstPts[0] = 0f
@@ -161,8 +163,9 @@ class RemoteStreamCameraEncoder(
                 }, handler)
             }
 
-            val mediaSource = RemoteStreamSupport.buildMediaSource(context, streamSource, streamUrl)
-            player = RemoteStreamSupport.buildConfiguredPlayer(context).apply {
+            val latencyOptions = RemoteStreamSupport.readLatencyOptions(context)
+            val mediaSource = RemoteStreamSupport.buildMediaSource(context, streamSource, streamUrl, latencyOptions)
+            player = RemoteStreamSupport.buildConfiguredPlayer(context, latencyOptions).apply {
                 addListener(playerListener)
                 setVideoSurface(imageReader!!.surface)
                 setMediaSource(mediaSource)

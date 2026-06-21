@@ -143,6 +143,23 @@
   </string-array>
   <string name="pref_title_camera_rtsp_url">Remote Stream URL</string>
   <string name="pref_summary_camera_rtsp_url">Examples: rtsp://host:8554/stream, http://host:1984/api/hls/cam/index.m3u8, http://host:1984/api/stream/cam?mp4, http://host:1984/api/stream/cam?mjpeg</string>
+  <string name="pref_title_latency_rtsp_udp_preferred">RTSP: Prefer UDP transport</string>
+  <string name="pref_summary_latency_rtsp_udp_preferred">Disables forced TCP interleaving for lower RTSP latency when the network allows UDP</string>
+  <string name="pref_title_latency_low_buffering">Player: Low-latency buffering</string>
+  <string name="pref_summary_latency_low_buffering">Uses smaller playback buffers for faster startup and reduced delay</string>
+  <string name="pref_title_latency_ll_hls">HLS: Prefer LL-HLS behavior</string>
+  <string name="pref_summary_latency_ll_hls">Optimizes HLS preparation for low-latency playlists (requires LL-HLS on the server)</string>
+  <string name="pref_title_latency_remote_optimize">Remote capture optimization</string>
+  <string name="pref_summary_latency_remote_optimize">Reduces processing cost by using a smaller remote capture frame size</string>
+  <string name="pref_title_latency_remote_resolution">Optimized remote resolution</string>
+  <string-array name="pref_list_latency_remote_resolution">
+    <item>128 px (Default)</item>
+    <item>96 px (Ultra Low Latency)</item>
+    <item>160 px (Balanced)</item>
+    <item>192 px (Sharper)</item>
+    <item>256 px (High Detail)</item>
+    <item>320 px (Very High Detail)</item>
+  </string-array>
   <string-array name="pref_list_capture_source">
     <item>Screen Sync</item>
     <item>Camera (Ambient)</item>
@@ -544,6 +561,8 @@
   <!-- WLED advanced settings -->
   <string name="pref_title_wled_protocol">WLED Protocol</string>
   <string name="pref_summary_wled_protocol">DDP (recommended for WLED 0.11+) or UDP Raw</string>
+  <string name="pref_title_latency_prefer_ddp">Prefer DDP for lower latency</string>
+  <string name="pref_summary_latency_prefer_ddp">When enabled, WLED protocol switches to DDP automatically</string>
   <string-array name="pref_list_wled_protocol">
     <item>UDP Raw (port 19446)</item>
     <item>DDP (port 4048)</item>
@@ -556,6 +575,13 @@
   <string name="pref_summary_wled_rgbw">Enable white channel support (RGBW LED)</string>
   <string name="pref_title_wled_brightness">WLED Brightness</string>
   <string name="pref_summary_wled_brightness">LED brightness during streaming (0-255)</string>
+  <string name="pref_toast_latency_rtsp_udp_applies_to_rtsp">This setting applies to RTSP streams only.</string>
+  <string name="pref_toast_latency_ll_hls_applies_to_hls">This setting applies to HLS streams only.</string>
+  <string name="pref_toast_latency_low_buffer_warning">Low-latency buffering enabled. Disable it if playback becomes unstable.</string>
+  <string name="pref_toast_latency_prefer_ddp_requires_wled">DDP preference applies only to WLED connections.</string>
+  <string name="pref_toast_latency_prefer_ddp_enabled">WLED protocol switched to DDP (port 4048).</string>
+  <string name="pref_toast_latency_remote_optimize_requires_remote">Remote capture optimization applies to remote camera streams only.</string>
+  <string name="pref_toast_latency_remote_resolution_saved">Optimized remote resolution set to %1$s px.</string>
   
   <!-- Adalight advanced settings -->
   <string name="pref_title_adalight_protocol">Adalight Protocol</string>

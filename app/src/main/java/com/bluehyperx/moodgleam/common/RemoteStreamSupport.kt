@@ -6,11 +6,14 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.DefaultHttpDataSource
+import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.hls.HlsMediaSource
 import androidx.media3.exoplayer.rtsp.RtspMediaSource
 import androidx.media3.exoplayer.source.MediaSource
 import androidx.media3.exoplayer.source.ProgressiveMediaSource
+import com.bluehyperx.moodgleam.R
+import com.bluehyperx.moodgleam.common.util.Preferences
 
 object RemoteStreamSupport {
     const val SOURCE_INTERNAL = "internal"
@@ -21,6 +24,18 @@ object RemoteStreamSupport {
 
     private const val CONNECT_TIMEOUT_MS = 15_000
     private const val READ_TIMEOUT_MS = 30_000
+    private const val LOW_LATENCY_MIN_BUFFER_MS = 200
+    private const val LOW_LATENCY_MAX_BUFFER_MS = 900
+    private const val LOW_LATENCY_PLAYBACK_BUFFER_MS = 120
+    private const val LOW_LATENCY_REBUFFER_MS = 200
+
+    data class LatencyOptions(
+        val preferRtspUdp: Boolean = true,
+        val lowLatencyBuffering: Boolean = false,
+        val preferLlHls: Boolean = false,
+        val optimizeRemoteCapture: Boolean = false,
+        val optimizedCaptureWidth: Int = 128,
+    )
 
     fun isRemoteSource(source: String?): Boolean = normalizeSource(source) != SOURCE_INTERNAL
 
@@ -40,20 +55,49 @@ object RemoteStreamSupport {
         return builder.build()
     }
 
+    fun readLatencyOptions(context: Context): LatencyOptions {
+        val prefs = Preferences(context)
+        val width = prefs.getString(R.string.pref_key_latency_remote_resolution, "128")
+            ?.toIntOrNull()
+            ?.coerceIn(64, 512)
+            ?: 128
+        return LatencyOptions(
+            preferRtspUdp = prefs.getBoolean(R.string.pref_key_latency_rtsp_udp_preferred, true),
+            lowLatencyBuffering = prefs.getBoolean(R.string.pref_key_latency_low_buffering, false),
+            preferLlHls = prefs.getBoolean(R.string.pref_key_latency_ll_hls, false),
+            optimizeRemoteCapture = prefs.getBoolean(R.string.pref_key_latency_remote_optimize, false),
+            optimizedCaptureWidth = width
+        )
+    }
+
+    fun resolveRemoteCaptureWidth(context: Context, fallbackWidth: Int): Int {
+        val options = readLatencyOptions(context)
+        return if (options.optimizeRemoteCapture) {
+            options.optimizedCaptureWidth
+        } else {
+            fallbackWidth
+        }
+    }
+
     /**
      * Creates an appropriate [MediaSource] for the given stream source and URL.
      * This ensures ExoPlayer uses the correct protocol handler (RTSP, HLS, or progressive)
      * instead of relying solely on content sniffing which fails for many live streams
      * (e.g. go2rtc).
      */
-    fun buildMediaSource(context: Context, source: String?, url: String): MediaSource {
+    fun buildMediaSource(
+        context: Context,
+        source: String?,
+        url: String,
+        latencyOptions: LatencyOptions = readLatencyOptions(context),
+    ): MediaSource {
         val normalizedSource = normalizeSource(source)
         val mediaItem = buildMediaItem(source, url)
 
         return when (normalizedSource) {
             SOURCE_RTSP -> {
                 val factory = RtspMediaSource.Factory()
-                    .setForceUseRtpTcp(true)
+                    .setForceUseRtpTcp(!latencyOptions.preferRtspUdp)
                     .setTimeoutMs(READ_TIMEOUT_MS.toLong())
                 factory.createMediaSource(mediaItem)
             }
@@ -64,7 +108,7 @@ object RemoteStreamSupport {
                     .setAllowCrossProtocolRedirects(true)
                 val dataSourceFactory = DefaultDataSource.Factory(context, httpDataSourceFactory)
                 HlsMediaSource.Factory(dataSourceFactory)
-                    .setAllowChunklessPreparation(true)
+                    .setAllowChunklessPreparation(!latencyOptions.preferLlHls)
                     .createMediaSource(mediaItem)
             }
             else -> {
@@ -79,17 +123,37 @@ object RemoteStreamSupport {
         }
     }
 
-    fun buildPlayer(context: Context, source: String?, url: String): ExoPlayer {
-        val player = buildConfiguredPlayer(context)
-        val mediaSource = buildMediaSource(context, source, url)
+    fun buildPlayer(
+        context: Context,
+        source: String?,
+        url: String,
+        latencyOptions: LatencyOptions = readLatencyOptions(context),
+    ): ExoPlayer {
+        val player = buildConfiguredPlayer(context, latencyOptions)
+        val mediaSource = buildMediaSource(context, source, url, latencyOptions)
         player.setMediaSource(mediaSource)
         player.playWhenReady = true
         player.prepare()
         return player
     }
 
-    fun buildConfiguredPlayer(context: Context): ExoPlayer {
-        return ExoPlayer.Builder(context).build().apply {
+    fun buildConfiguredPlayer(
+        context: Context,
+        latencyOptions: LatencyOptions = readLatencyOptions(context),
+    ): ExoPlayer {
+        val builder = ExoPlayer.Builder(context)
+        if (latencyOptions.lowLatencyBuffering) {
+            val loadControl = DefaultLoadControl.Builder()
+                .setBufferDurationsMs(
+                    LOW_LATENCY_MIN_BUFFER_MS,
+                    LOW_LATENCY_MAX_BUFFER_MS,
+                    LOW_LATENCY_PLAYBACK_BUFFER_MS,
+                    LOW_LATENCY_REBUFFER_MS
+                )
+                .build()
+            builder.setLoadControl(loadControl)
+        }
+        return builder.build().apply {
             trackSelectionParameters = trackSelectionParameters
                 .buildUpon()
                 .setTrackTypeDisabled(C.TRACK_TYPE_AUDIO, true)

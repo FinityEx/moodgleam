@@ -685,6 +685,7 @@ class ScreenGrabberService : Service() {
         try {
             mCameraEncoder = if (RemoteStreamSupport.isRemoteSource(cameraInputSource)) {
                 val streamUrl = prefs.getString(R.string.pref_key_camera_rtsp_url, "")?.trim().orEmpty()
+                val remoteCaptureWidth = RemoteStreamSupport.resolveRemoteCaptureWidth(this, options.captureQuality)
                 if (streamUrl.isBlank()) {
                     Log.w(TAG, "Remote camera source selected but URL is blank")
                     mStartError = resources.getString(
@@ -699,7 +700,8 @@ class ScreenGrabberService : Service() {
                         thread.receiver,
                         options,
                         corners,
-                        streamUrl
+                        streamUrl,
+                        remoteCaptureWidth
                     ) { error -> stopCameraCaptureWithError(error) }
                 } else {
                     RemoteStreamCameraEncoder(
@@ -708,7 +710,8 @@ class ScreenGrabberService : Service() {
                         options,
                         corners,
                         cameraInputSource,
-                        streamUrl
+                        streamUrl,
+                        remoteCaptureWidth
                     ) { error -> stopCameraCaptureWithError(error) }
                 }
             } else {
@@ -1420,6 +1423,11 @@ class ScreenGrabberService : Service() {
             getString(R.string.pref_key_music_capture_method),
             getString(R.string.pref_key_framerate),
             getString(R.string.pref_key_capture_quality),
+            getString(R.string.pref_key_latency_rtsp_udp_preferred),
+            getString(R.string.pref_key_latency_low_buffering),
+            getString(R.string.pref_key_latency_ll_hls),
+            getString(R.string.pref_key_latency_remote_optimize),
+            getString(R.string.pref_key_latency_remote_resolution),
             getString(R.string.pref_key_use_avg_color),
             getString(R.string.pref_key_x_led),
             getString(R.string.pref_key_y_led)
@@ -1444,6 +1452,7 @@ class ScreenGrabberService : Service() {
             getString(R.string.pref_key_wled_rgbw),
             getString(R.string.pref_key_wled_brightness),
             getString(R.string.pref_key_adalight_protocol),
+            getString(R.string.pref_key_latency_prefer_ddp),
             getString(R.string.pref_key_smoothing_enabled),
             getString(R.string.pref_key_smoothing_preset),
             getString(R.string.pref_key_settling_time),
