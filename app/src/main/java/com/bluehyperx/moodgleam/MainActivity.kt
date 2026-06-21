@@ -88,6 +88,7 @@ import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import androidx.navigation.compose.rememberNavController
 import com.bluehyperx.moodgleam.common.AccessibilityCaptureService
 import com.bluehyperx.moodgleam.common.BootActivity
+import com.bluehyperx.moodgleam.common.RemoteStreamSupport
 import com.bluehyperx.moodgleam.common.ScreenGrabberService
 import com.bluehyperx.moodgleam.common.util.LocaleHelper
 import com.bluehyperx.moodgleam.common.util.PermissionHelper
@@ -155,17 +156,18 @@ class MainActivity : ComponentActivity() {
         override fun onReceive(context: Context, intent: Intent) {
             val checked = intent.getBooleanExtra(ScreenGrabberService.BROADCAST_TAG, false)
             val wasRunning = mRecorderRunning
-            mRecorderRunning = checked
-            
-            mConnectedDeviceName = intent.getStringExtra(ScreenGrabberService.BROADCAST_DEVICE_NAME)
-
             val error = intent.getStringExtra(ScreenGrabberService.BROADCAST_ERROR)
             val tclBlocked =
                 intent.getBooleanExtra(ScreenGrabberService.BROADCAST_TCL_BLOCKED, false)
+            val shouldKeepPendingState = wasRunning && !checked && !mSessionEverConnected &&
+                    error == null && !tclBlocked
+
+            mRecorderRunning = checked || shouldKeepPendingState
+            mConnectedDeviceName = intent.getStringExtra(ScreenGrabberService.BROADCAST_DEVICE_NAME)
 
             if (checked) mSessionEverConnected = true
 
-            if (wasRunning && !checked) {
+            if (wasRunning && !checked && !shouldKeepPendingState) {
                 val reason = when {
                     tclBlocked -> "tcl_blocked"
                     error != null -> "error"
@@ -477,7 +479,19 @@ class MainActivity : ComponentActivity() {
         val prefs = Preferences(this)
         val cameraInputSource =
             prefs.getString(R.string.pref_key_camera_input_source, "internal") ?: "internal"
-        if (cameraInputSource == "rtsp") {
+        if (RemoteStreamSupport.isRemoteSource(cameraInputSource)) {
+            val remoteUrl = prefs.getString(R.string.pref_key_camera_rtsp_url, "")?.trim().orEmpty()
+            if (remoteUrl.isBlank()) {
+                Toast.makeText(
+                    this,
+                    getString(
+                        R.string.pref_error_missing_field,
+                        getString(R.string.pref_title_camera_rtsp_url)
+                    ),
+                    Toast.LENGTH_LONG
+                ).show()
+                return
+            }
             startCameraGrabber()
             return
         }

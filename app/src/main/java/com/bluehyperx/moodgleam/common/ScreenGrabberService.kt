@@ -682,24 +682,38 @@ class ScreenGrabberService : Service() {
         val cornersStr = prefs.getString(R.string.pref_key_camera_corners, null)
         val corners = CameraEncoder.parseCornersString(cornersStr)
 
-        mCameraEncoder = if (cameraInputSource == "rtsp") {
-            val rtspUrl = prefs.getString(R.string.pref_key_camera_rtsp_url, "")?.trim().orEmpty()
-            if (rtspUrl.isBlank()) {
-                Log.w(TAG, "RTSP camera source selected but URL is blank")
+        mCameraEncoder = if (RemoteStreamSupport.isRemoteSource(cameraInputSource)) {
+            val streamUrl = prefs.getString(R.string.pref_key_camera_rtsp_url, "")?.trim().orEmpty()
+            if (streamUrl.isBlank()) {
+                Log.w(TAG, "Remote camera source selected but URL is blank")
                 mStartError = resources.getString(
                     R.string.pref_error_missing_field,
                     resources.getString(R.string.pref_title_camera_rtsp_url)
                 )
                 haltStartup()
                 return
+            } else if (RemoteStreamSupport.normalizeSource(cameraInputSource) == RemoteStreamSupport.SOURCE_MJPEG) {
+                MjpegCameraEncoder(
+                    this,
+                    thread.receiver,
+                    options,
+                    corners,
+                    streamUrl
+                ) { error -> stopCameraCaptureWithError(error) }
             } else {
-                RtspCameraEncoder(thread.receiver, options, corners, rtspUrl)
+                RemoteStreamCameraEncoder(
+                    this,
+                    thread.receiver,
+                    options,
+                    corners,
+                    cameraInputSource,
+                    streamUrl
+                ) { error -> stopCameraCaptureWithError(error) }
             }
         } else {
             CameraEncoder(this, thread.receiver, options, corners)
         }
         mCameraEncoder!!.start()
-        mCameraEncoder!!.sendStatus()
     }
 
     private fun startEffectsCapture() {
@@ -826,6 +840,13 @@ class ScreenGrabberService : Service() {
             mHyperionThread = null
         }
 
+        stopSelf()
+    }
+
+    private fun stopCameraCaptureWithError(error: String) {
+        mStartError = error
+        notifyActivity()
+        stopAllCapture()
         stopSelf()
     }
 
