@@ -254,7 +254,9 @@ fun SettingsScreen(
                                 }
                             )
                         }
-                  { CheckBoxPreference(
+                        
+                     
+                        CheckBoxPreference(
                             prefs = prefs,
                             keyRes = R.string.pref_key_latency_prefer_ddp,
                             title = stringResource(R.string.pref_title_latency_prefer_ddp),
