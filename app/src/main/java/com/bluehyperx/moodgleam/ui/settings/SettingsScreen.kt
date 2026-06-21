@@ -277,9 +277,11 @@ key(latencyPreferDdp) { CheckBoxPreference(
                                         context.getString(R.string.pref_toast_latency_prefer_ddp_enabled),
                                         Toast.LENGTH_LONG
                                     ).show()
+                                
                                 }
                             }
                         )
+                    }
                     }
 
                     // Use key to force recomposition when connection type or WLED protocol changes
